@@ -1,6 +1,4 @@
 TitanU / WeCanMesh — How This Actually Works
-
-A plain-English explanation of what you built. No jargon. If you already know what "load balancing" means, you don't need this doc.
 The one-sentence version
 
 You turned a bunch of old laptops into your own private ChatGPT, and built three small programs that let them work together as one brain.
