@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TitanU · WeCanMesh Control Plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080b0f;
+    --bg2: #0d1117;
+    --bg3: #131920;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8edf2;
+    --text2: #7a8a99;
+    --text3: #3d4f60;
+    --accent: #00e5a0;
+    --accent2: #0077ff;
+    --accent3: #ff4f6e;
+    --amber: #ffaa00;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+  /* LAYOUT */
+  .shell { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 52px 1fr; height: 100vh; }
+
+  /* TOPBAR */
+  .topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .logo { font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); }
+  .logo span { color: var(--text2); font-weight: 400; }
+  .topbar-divider { width: 1px; height: 20px; background: var(--border2); }
+  .mesh-status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text2); font-family: var(--mono); }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 rgba(0,229,160,0.4); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(0,229,160,0.4)} 50%{box-shadow:0 0 0 6px rgba(0,229,160,0)} }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .time { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .btn-small { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .btn-small:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .sidebar-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.12em; padding: 8px 16px 4px; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; cursor: pointer;
+    font-size: 13px; color: var(--text2);
+    border-left: 2px solid transparent;
+    transition: all 0.12s;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,160,0.05); }
+  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* MAIN */
+  .main { overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; background: var(--bg); }
+
+  /* STATS ROW */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; margin-bottom: 6px; }
+  .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.blue { color: var(--accent2); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  /* NODE GRID */
+  .section-header { display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+  .node-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  .node-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .node-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent); opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .node-card.online::before { opacity: 1; }
+  .node-card.offline::before { background: var(--text3); opacity: 1; }
+  .node-card.warning::before { background: var(--amber); opacity: 1; }
+  .node-card:hover { border-color: var(--border2); background: var(--bg3); }
+  .node-card.selected { border-color: var(--accent); background: rgba(0,229,160,0.04); }
+
+  .node-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .node-name { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text); }
+  .node-role { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .node-badge {
+    font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 3px;
+    font-weight: 700; letter-spacing: 0.06em;
+  }
+  .badge-online { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .badge-offline { background: rgba(255,255,255,0.05); color: var(--text3); }
+  .badge-warning { background: rgba(255,170,0,0.15); color: var(--amber); }
+
+  .node-ip { font-family: var(--mono); font-size: 10px; color: var(--accent2); margin-bottom: 10px; }
+
+  .node-specs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-bottom: 10px; }
+  .spec { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+  .spec-icon { font-size: 12px; color: var(--text3); }
+
+  .bar-wrap { margin-bottom: 8px; }
+  .bar-label { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9px; color: var(--text3); margin-bottom: 3px; }
+  .bar-track { height: 3px; background: var(--bg3); border-radius: 2px; }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.5s; }
+  .bar-fill.warm { background: var(--amber); }
+  .bar-fill.hot { background: var(--accent3); }
+
+  .model-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .model-tag { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 3px; border: 1px solid var(--border2); color: var(--text3); }
+
+  /* INFERENCE PANEL */
+  .bottom-row { display: grid; grid-template-columns: 1fr 340px; gap: 12px; }
+
+  .inference-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .panel-title { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .chat-log { flex: 1; min-height: 160px; max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+  .chat-log::-webkit-scrollbar { width: 3px; }
+  .chat-log::-webkit-scrollbar-track { background: transparent; }
+  .chat-log::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .msg { padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.5; max-width: 92%; }
+  .msg.user { background: rgba(0,119,255,0.12); border: 1px solid rgba(0,119,255,0.2); color: var(--text); margin-left: auto; }
+  .msg.assistant { background: var(--bg3); border: 1px solid var(--border); color: var(--text); }
+  .msg .meta { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-bottom: 3px; }
+
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px;
+    padding: 8px 12px; color: var(--text); font-family: var(--sans); font-size: 12px;
+    outline: none; transition: border-color 0.15s;
+  }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-input::placeholder { color: var(--text3); }
+
+  .send-btn {
+    padding: 8px 14px; background: var(--accent); border: none; border-radius: 6px;
+    color: #000; font-family: var(--mono); font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+  }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .node-select { background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; padding: 6px 10px; color: var(--text2); font-family: var(--mono); font-size: 11px; outline: none; }
+  .node-select:focus { border-color: var(--accent); }
+
+  /* ACTIVITY LOG */
+  .activity-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .log-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 220px; }
+  .log-entry { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; }
+  .log-ts { font-family: var(--mono); font-size: 9px; color: var(--text3); white-space: nowrap; padding-top: 1px; }
+  .log-dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .log-dot.green { background: var(--accent); }
+  .log-dot.blue { background: var(--accent2); }
+  .log-dot.amber { background: var(--amber); }
+  .log-dot.red { background: var(--accent3); }
+  .log-text { color: var(--text2); line-height: 1.4; }
+  .log-text strong { color: var(--text); font-weight: 500; }
+
+  /* TYPING INDICATOR */
+  .typing { display: flex; gap: 4px; align-items: center; padding: 8px 10px; }
+  .typing-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); animation: blink 1.2s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.3} 40%{opacity:1} }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="logo">TITAN<span>-U</span> / <span>WeCanMesh</span></div>
+    <div class="topbar-divider"></div>
+    <div class="mesh-status"><div class="pulse"></div> mesh active · 100.64.0.0/10</div>
+    <div class="topbar-right">
+      <div class="time" id="clock">--:--:--</div>
+      <button class="btn-small" onclick="addNode()">+ enroll node</button>
+      <button class="btn-small" onclick="refreshAll()">↻ refresh</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-label">Control</div>
+    <div class="nav-item active"><div class="nav-dot"></div>Mesh Overview</div>
+    <div class="nav-item"><div class="nav-dot"></div>Node Manager</div>
+    <div class="nav-item"><div class="nav-dot"></div>Inference Router</div>
+    <div class="nav-item"><div class="nav-dot"></div>API Gateway</div>
+
+    <div class="sidebar-label" style="margin-top:8px">Security</div>
+    <div class="nav-item"><div class="nav-dot"></div>Auth Keys</div>
+    <div class="nav-item"><div class="nav-dot"></div>Audit Log</div>
+    <div class="nav-item"><div class="nav-dot"></div>Access Policy</div>
+
+    <div class="sidebar-label" style="margin-top:8px">Models</div>
+    <div class="nav-item"><div class="nav-dot"></div>Registry</div>
+    <div class="nav-item"><div class="nav-dot"></div>Pull Queue</div>
+
+    <div style="margin-top:auto; padding: 16px;">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.7;">
+        Headscale v0.23<br>
+        Ollama v0.6.5<br>
+        Shim v1.0<br>
+        <span style="color:var(--accent)">hs.titanuai.com</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">NODES ONLINE</div>
+        <div class="stat-value green" id="stat-online">3</div>
+        <div class="stat-sub" id="stat-total">of 4 enrolled</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ACTIVE MODELS</div>
+        <div class="stat-value blue" id="stat-models">5</div>
+        <div class="stat-sub">across mesh</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">REQUESTS / MIN</div>
+        <div class="stat-value amber" id="stat-rpm">0</div>
+        <div class="stat-sub" id="stat-uptime">mesh uptime 0m</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">DATA LOCALITY</div>
+        <div class="stat-value green">100%</div>
+        <div class="stat-sub">zero cloud egress</div>
+      </div>
+    </div>
+
+    <!-- NODE GRID -->
+    <div class="section-header">
+      <div class="section-title">Mesh Nodes</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3)" id="last-seen">last poll: just now</div>
+    </div>
+    <div class="node-grid" id="node-grid"></div>
+
+    <!-- BOTTOM ROW -->
+    <div class="bottom-row">
+
+      <!-- INFERENCE -->
+      <div class="inference-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div class="panel-title">Inference Terminal</div>
+          <select class="node-select" id="node-select">
+            <option value="auto">auto-route (mesh)</option>
+            <option value="100.110.238.3">Brain · 100.110.238.3</option>
+            <option value="100.109.64.117">Air · 100.109.64.117</option>
+            <option value="100.64.255.7">NUC · 100.64.255.7</option>
+          </select>
+        </div>
+        <div class="chat-log" id="chat-log">
+          <div class="msg assistant">
+            <div class="meta">TITAN-U · mesh · llama3.2</div>
+            Sovereign AI node online. Zero cloud. Zero trust. Ready for inference.
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" placeholder="Send to mesh..." type="text" />
+          <button class="send-btn" id="send-btn" onclick="sendInference()">SEND</button>
+        </div>
+      </div>
+
+      <!-- ACTIVITY LOG -->
+      <div class="activity-panel">
+        <div class="panel-title">Activity Log</div>
+        <div class="log-list" id="log-list"></div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+const NODES = [
+  {
+    id: 'nuc',
+    name: 'NUC-CORE',
+    role: 'Execution Core · Audio Bridge',
+    ip: '100.64.255.7',
+    status: 'online',
+    cpu: 'Intel NUC i5',
+    ram: '16GB',
+    gpu: 'Intel UHD',
+    disk: '512GB',
+    cpuLoad: 34,
+    ramLoad: 41,
+    models: ['mistral', 'phi3'],
+    os: 'Windows 11'
+  },
+  {
+    id: 'brain',
+    name: 'JUSCHILL-PRO',
+    role: 'Sovereign Brain · Primary Inference',
+    ip: '100.110.238.3',
+    status: 'online',
+    cpu: 'Intel i7-7700HQ',
+    ram: '16GB',
+    gpu: 'Intel UHD 630',
+    disk: '500GB',
+    cpuLoad: 67,
+    ramLoad: 58,
+    models: ['llama3.2', 'llama3.1', 'codellama'],
+    os: 'EndeavourOS'
+  },
+  {
+    id: 'air',
+    name: 'JUSCHILL-AIR',
+    role: 'Worker · Control Plane Host',
+    ip: '100.109.64.117',
+    status: 'online',
+    cpu: 'Intel i5-5350U',
+    ram: '8GB',
+    gpu: 'Intel HD 6000',
+    disk: '128GB',
+    cpuLoad: 22,
+    ramLoad: 44,
+    models: ['llama3.2', 'phi3'],
+    os: 'EndeavourOS'
+  },
+  {
+    id: 'iphone',
+    name: 'PROMAX-EDGE',
+    role: 'Edge Node · A18 Pro',
+    ip: '100.64.88.12',
+    status: 'warning',
+    cpu: 'Apple A18 Pro',
+    ram: '8GB',
+    gpu: 'A18 GPU (6c)',
+    disk: '512GB',
+    cpuLoad: 0,
+    ramLoad: 0,
+    models: ['llama3.2:1b'],
+    os: 'iOS 18 / WeCanMesh'
+  }
+];
+
+const LOGS = [
+  { type: 'green', text: '<strong>JUSCHILL-PRO</strong> enrolled via pre-auth key' },
+  { type: 'green', text: '<strong>JUSCHILL-AIR</strong> enrolled via pre-auth key' },
+  { type: 'blue',  text: 'llama3.2 pulled on <strong>JUSCHILL-PRO</strong>' },
+  { type: 'blue',  text: 'codellama pulled on <strong>JUSCHILL-PRO</strong>' },
+  { type: 'green', text: '<strong>NUC-CORE</strong> joined mesh — 100.64.255.7' },
+  { type: 'amber', text: '<strong>PROMAX-EDGE</strong> — WeCanMesh handshake pending' },
+  { type: 'blue',  text: 'API shim active on all nodes · port 8000' },
+  { type: 'green', text: 'Zero-trust firewall rules applied' },
+];
+
+let selectedNode = null;
+let reqCount = 0;
+let startTime = Date.now();
+
+function ts() {
+  return new Date().toLocaleTimeString('en-US', {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function renderNodes() {
+  const grid = document.getElementById('node-grid');
+  grid.innerHTML = '';
+  NODES.forEach(n => {
+    const cpuClass = n.cpuLoad > 80 ? 'hot' : n.cpuLoad > 60 ? 'warm' : '';
+    const ramClass = n.ramLoad > 80 ? 'hot' : n.ramLoad > 60 ? 'warm' : '';
+    const card = document.createElement('div');
+    card.className = `node-card ${n.status}${selectedNode === n.id ? ' selected' : ''}`;
+    card.onclick = () => { selectedNode = selectedNode === n.id ? null : n.id; renderNodes(); };
+    card.innerHTML = `
+      <div class="node-header">
+        <div>
+          <div class="node-name">${n.name}</div>
+          <div class="node-role">${n.role}</div>
+        </div>
+        <div class="node-badge badge-${n.status}">${n.status.toUpperCase()}</div>
+      </div>
+      <div class="node-ip">${n.ip}</div>
+      <div class="node-specs">
+        <div class="spec"><span class="spec-icon">⬡</span>${n.cpu}</div>
+        <div class="spec"><span class="spec-icon">◈</span>${n.ram} RAM</div>
+        <div class="spec"><span class="spec-icon">◫</span>${n.gpu}</div>
+        <div class="spec"><span class="spec-icon">▣</span>${n.disk}</div>
+      </div>
+      ${n.status !== 'offline' && n.cpuLoad > 0 ? `
+      <div class="bar-wrap">
+        <div class="bar-label"><span>CPU</span><span>${n.cpuLoad}%</span></div>
+        <div class="bar-track"><div class="bar-fill ${cpuClass}" style="width:${n.cpuLoad}%"></div></div>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-label"><span>RAM</span><span>${n.ramLoad}%</span></div>
+        <div class="bar-track"><div class="bar-fill ${ramClass}" style="width:${n.ramLoad}%"></div></div>
+      </div>` : ''}
+      <div class="model-tags">${n.models.map(m => `<div class="model-tag">${m}</div>`).join('')}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderLogs() {
+  const list = document.getElementById('log-list');
+  const now = new Date();
+  list.innerHTML = '';
+  LOGS.slice().reverse().forEach((l, i) => {
+    const d = new Date(now - i * 47000);
+    const t = d.toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const el = document.createElement('div');
+    el.className = 'log-entry';
+    el.innerHTML = `<div class="log-ts">${t}</div><div class="log-dot ${l.type}"></div><div class="log-text">${l.text}</div>`;
+    list.appendChild(el);
+  });
+}
+
+function addLog(type, text) {
+  LOGS.push({ type, text });
+  renderLogs();
+}
+
+function sendInference() {
+  const input = document.getElementById('chat-input');
+  const btn = document.getElementById('send-btn');
+  const log = document.getElementById('chat-log');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const route = document.getElementById('node-select').value;
+  const nodeLabel = route === 'auto' ? 'mesh auto-route' : route;
+
+  // User message
+  const userEl = document.createElement('div');
+  userEl.className = 'msg user';
+  userEl.innerHTML = `<div class="meta">YOU · ${ts()}</div>${msg}`;
+  log.appendChild(userEl);
+
+  // Typing
+  const typingEl = document.createElement('div');
+  typingEl.className = 'msg assistant typing';
+  typingEl.innerHTML = `<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>`;
+  log.appendChild(typingEl);
+  log.scrollTop = log.scrollHeight;
+
+  input.value = '';
+  btn.disabled = true;
+
+  // Simulate response (replace with real fetch to shim)
+  const responses = [
+    "This inference ran entirely on your hardware. No data left your mesh.",
+    "Processed locally on JUSCHILL-PRO. Zero cloud egress. Zero telemetry.",
+    "WeCanMesh routing confirmed. Air-gapped inference complete.",
+    "Sovereign compute confirmed. Your data never touched a third-party server.",
+    "Node responded in 847ms. Model: llama3.2. Origin: 100.110.238.3.",
+  ];
+
+  setTimeout(() => {
+    typingEl.remove();
+    const resp = document.createElement('div');
+    resp.className = 'msg assistant';
+    resp.innerHTML = `<div class="meta">TITAN-U · ${nodeLabel} · ${ts()}</div>${responses[Math.floor(Math.random()*responses.length)]}`;
+    log.appendChild(resp);
+    log.scrollTop = log.scrollHeight;
+    btn.disabled = false;
+
+    reqCount++;
+    document.getElementById('stat-rpm').textContent = reqCount;
+    addLog('blue', `Inference routed to <strong>${nodeLabel}</strong>`);
+  }, 1200 + Math.random() * 800);
+
+  /* PRODUCTION: replace simulation above with:
+  fetch(`http://${route === 'auto' ? '100.110.238.3' : route}:8000/v1/chat/completions`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({model:'llama3.2', messages:[{role:'user', content: msg}]})
+  }).then(r=>r.json()).then(data => { ... });
+  */
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendInference();
+});
+
+function addNode() {
+  addLog('amber', 'New enrollment initiated — generating pre-auth key...');
+  setTimeout(() => addLog('green', 'Pre-auth key generated · expires 1h'), 1500);
+}
+
+function refreshAll() {
+  document.getElementById('last-seen').textContent = `last poll: ${ts()}`;
+  NODES.forEach(n => {
+    if (n.status === 'online') {
+      n.cpuLoad = Math.max(5, Math.min(95, n.cpuLoad + Math.floor((Math.random()-0.5)*18)));
+      n.ramLoad = Math.max(10, Math.min(90, n.ramLoad + Math.floor((Math.random()-0.5)*10)));
+    }
+  });
+  renderNodes();
+  addLog('blue', 'Mesh health poll complete — all nodes responded');
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = ts();
+  const mins = Math.floor((Date.now() - startTime) / 60000);
+  document.getElementById('stat-uptime').textContent = `mesh uptime ${mins}m`;
+}
+
+// Init
+renderNodes();
+renderLogs();
+updateClock();
+setInterval(updateClock, 1000);
+setInterval(refreshAll, 30000);
+</script>
+</body>
+</html>

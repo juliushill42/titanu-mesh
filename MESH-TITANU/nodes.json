@@ -1,0 +1,23 @@
+[
+  {
+    "hostname": "juschill-pro",
+    "mesh_ip": "100.110.238.3",
+    "shim_port": 8000,
+    "role": "control",
+    "models": ["llama3.2", "llama3.1", "codellama"]
+  },
+  {
+    "hostname": "juschill-air",
+    "mesh_ip": "100.109.64.117",
+    "shim_port": 8000,
+    "role": "worker",
+    "models": ["llama3.2", "phi3"]
+  },
+  {
+    "hostname": "nuc-core",
+    "mesh_ip": "100.64.255.7",
+    "shim_port": 8000,
+    "role": "worker",
+    "models": ["mistral", "phi3"]
+  }
+]
